@@ -1,0 +1,17 @@
+# Gmail API credentials & auth — never commit these
+gmail-sync/credentials.json
+gmail-sync/token.json
+
+# Generated personal data
+gmail-sync/orders.csv
+gmail-sync/dashboard.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS cruft
+.DS_Store
+Thumbs.db

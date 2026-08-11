@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Consignment — Order Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12151F; --surface:#1B1F2C; --surface-2:#232838; --line:#2E3446; --text:#ECEDF3; --muted:#8B90A5;
+    --gold:#E3A54D; --teal:#4FB0A0; --rose:#E0637F;
+    --amazon:#F0A94E; --flipkart:#5B8DEF; --myntra:#E85D8A; --ajio:#8B6BC7; --other:#7C8194;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; padding:32px 20px 80px;}
+  .wrap{max-width:920px; margin:0 auto;}
+  h1{font-family:'Space Grotesk',sans-serif; font-size:28px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:2.5px; text-transform:uppercase; color:var(--gold); margin-bottom:6px;}
+  .subtitle{color:var(--muted); font-size:13.5px; margin:4px 0 24px;}
+  .summary{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; margin-bottom:22px;}
+  .summary .cell{background:var(--surface); padding:16px 18px;}
+  .summary .label{font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); margin-bottom:8px;}
+  .summary .value{font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:600;}
+  .controls{display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .tab{font-family:'IBM Plex Mono',monospace; font-size:12px; padding:7px 12px; border-radius:100px; border:1px solid var(--line); background:transparent; color:var(--muted); cursor:pointer;}
+  .tab.active{background:var(--surface-2); color:var(--text); border-color:#454d68;}
+  .search-input{flex:1; min-width:160px; background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:9px 12px; color:var(--text); font-size:13px;}
+  .order-list{display:flex; flex-direction:column; gap:10px;}
+  .order-card{position:relative; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:16px 18px; display:flex; align-items:center; gap:14px;}
+  .order-card::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:4px 0 0 4px; background:var(--platform-color, var(--other));}
+  .order-main{flex:1; min-width:0;}
+  .order-top{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:4px;}
+  .platform-tag{font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:1px; text-transform:uppercase; padding:2px 7px; border-radius:4px; color:#0e0e12; background:var(--platform-color, var(--other)); font-weight:600;}
+  .order-item{font-weight:600; font-size:14.5px;}
+  .order-meta{font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--muted); display:flex; gap:12px; flex-wrap:wrap;}
+  .order-right{display:flex; align-items:center; gap:14px; flex-shrink:0;}
+  .order-price{font-family:'IBM Plex Mono',monospace; font-size:15px; font-weight:600;}
+  .status-pill{font-size:11px; padding:4px 10px; border-radius:100px; font-weight:600; white-space:nowrap;}
+  .status-Delivered{background:rgba(79,176,160,0.15); color:var(--teal);}
+  .status-Shipped, .status-OutforDelivery{background:rgba(227,165,77,0.15); color:var(--gold);}
+  .status-Ordered{background:rgba(91,141,239,0.15); color:var(--flipkart);}
+  .status-Cancelled, .status-Returned{background:rgba(224,99,127,0.15); color:var(--rose);}
+  .status-Unknown{background:rgba(140,145,165,0.15); color:var(--muted);}
+  .empty{text-align:center; padding:60px 20px; color:var(--muted); border:1px dashed var(--line); border-radius:10px;}
+  .note{font-size:12px; color:var(--muted); margin-bottom:18px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Order Ledger</div>
+  <h1>Consignment</h1>
+  <div class="subtitle">Generated 2026-08-07 04:45 — 4 orders across 90 days.</div>
+  <div class="note">Parsed from Gmail with regex heuristics — double check prices/order IDs against orders.csv if something looks off. Re-run gmail_order_sync.py to refresh.</div>
+  <div id="summary"></div>
+  <div class="controls">
+    <div id="tabs"></div>
+    <input class="search-input" id="search" placeholder="Search item or order ID…">
+  </div>
+  <div id="list"></div>
+</div>
+<script>
+const ORDERS = [{"platform": "Amazon", "item": "boAt Rockerz 450 Bluetooth Headphones", "orderId": "402-1234567-1234567", "price": 1499.0, "status": "Delivered", "orderDate": "2026-07-20", "subject": "..."}, {"platform": "Flipkart", "item": "Nike Air Zoom Pegasus 39", "orderId": "OD123456789012345", "price": 7999.0, "status": "Shipped", "orderDate": "2026-07-28", "subject": "..."}, {"platform": "Myntra", "item": "Levis Slim Fit Jeans", "orderId": "MYN20938471", "price": 1999.0, "status": "Out for Delivery", "orderDate": "2026-08-01", "subject": "..."}, {"platform": "Ajio", "item": "H&M Cotton T-Shirt", "orderId": "AJ992834", "price": 799.0, "status": "Cancelled", "orderDate": "2026-07-15", "subject": "..."}];
+const PLATFORM_COLORS = {Amazon:'var(--amazon)',Flipkart:'var(--flipkart)',Myntra:'var(--myntra)',Ajio:'var(--ajio)',Other:'var(--other)'};
+const PLATFORMS = ['Amazon','Flipkart','Myntra','Ajio','Other'];
+let filter = 'All';
+let search = '';
+
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+
+function renderSummary() {
+  const total = ORDERS.length;
+  const spent = ORDERS.reduce((s,o)=>s+(o.price||0),0);
+  const delivered = ORDERS.filter(o=>o.status==='Delivered').length;
+  const platforms = new Set(ORDERS.map(o=>o.platform)).size;
+  document.getElementById('summary').innerHTML = `
+    <div class="summary">
+      <div class="cell"><div class="label">Total Orders</div><div class="value">${total}</div></div>
+      <div class="cell"><div class="label">Total Spent</div><div class="value">₹${spent.toLocaleString('en-IN')}</div></div>
+      <div class="cell"><div class="label">Delivered</div><div class="value">${delivered}</div></div>
+      <div class="cell"><div class="label">Platforms</div><div class="value">${platforms}</div></div>
+    </div>`;
+}
+
+function renderTabs() {
+  const all = ['All', ...PLATFORMS];
+  document.getElementById('tabs').innerHTML = all.map(p =>
+    `<button class="tab ${filter===p?'active':''}" onclick="setFilter('${p}')">${p}</button>`
+  ).join(' ');
+}
+
+function setFilter(p) { filter = p; renderTabs(); renderList(); }
+
+function renderList() {
+  let list = ORDERS.slice();
+  if (filter !== 'All') list = list.filter(o => o.platform === filter);
+  if (search.trim()) {
+    const q = search.toLowerCase();
+    list = list.filter(o => (o.item||'').toLowerCase().includes(q) || (o.orderId||'').toLowerCase().includes(q));
+  }
+  const el = document.getElementById('list');
+  if (list.length === 0) {
+    el.innerHTML = `<div class="empty">No orders match this filter.</div>`;
+    return;
+  }
+  el.innerHTML = `<div class="order-list">${list.map(o => `
+    <div class="order-card" style="--platform-color:${PLATFORM_COLORS[o.platform]||PLATFORM_COLORS.Other}">
+      <div class="order-main">
+        <div class="order-top">
+          <span class="platform-tag">${esc(o.platform)}</span>
+          <span class="order-item">${esc(o.item)}</span>
+        </div>
+        <div class="order-meta">
+          <span>${esc(o.orderDate||'—')}</span>
+          ${o.orderId ? `<span>#${esc(o.orderId)}</span>` : ''}
+        </div>
+      </div>
+      <div class="order-right">
+        <span class="status-pill status-${(o.status||'Unknown').replace(/\s+/g,'')}">${esc(o.status||'Unknown')}</span>
+        <span class="order-price">${o.price!=null ? '₹'+o.price.toLocaleString('en-IN') : '—'}</span>
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+
+document.getElementById('search').addEventListener('input', e => { search = e.target.value; renderList(); });
+renderSummary(); renderTabs(); renderList();
+</script>
+</body>
+</html>
